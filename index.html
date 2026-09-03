@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P3D Калькулятор</title>
+	<link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --accent: #4caf50;
+            --border: #555555;
+            --input-bg: #2c2c2c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 40px 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 30px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .toggle-arrow {
+            font-size: 12px;
+            transform: rotate(0deg);
+            transition: transform 0.2s ease;
+            color: var(--text-muted);
+        }
+
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 16px;
+            position: relative; 
+        }
+
+        .card.collapsed .card-content {
+            display: none !important;
+        }
+
+        .card.collapsed h2 {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .card.collapsed .toggle-arrow {
+            transform: rotate(-180deg);
+        }
+
+        .form-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .form-group input {
+            width: 100px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: right;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--accent);
+        }
+
+        .note-text {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .inner-block {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px; /* БЫЛО 16px - сделали саму рамку тоньше сверху и снизу */
+            background: rgba(255, 255, 255, 0.02);
+            margin-top: 4px;
+        }
+
+        .result-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 14px;
+            position: relative;
+            z-index: 1; 
+        }
+
+        .result-group.total {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--accent);
+            border-top: 1px dashed var(--border);
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+
+        .result-value {
+            font-family: monospace;
+            font-size: 15px;
+        }
+
+        .brackets-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr; /* Теперь тут 4 колонки */
+            gap: 8px; /* Немного уменьшили зазор между колонками */
+            margin-top: 6px; 
+        }
+        
+        .brackets-grid div {
+           font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            gap: 2px; /* БЫЛО 6px - придвинули сами окошки ввода вплотную к их названиям */
+            text-align: center;
+        }
+
+        .brackets-grid input {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .brackets-grid input:focus {
+            border-color: var(--accent);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .btn-save {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            flex: 1; 
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .btn-save:hover {
+            background: var(--accent);
+            color: #121212;
+        }
+
+        .logo-upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            width: 42px; 
+            height: 42px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .logo-upload-btn:hover {
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        /* Контейнер для текста, чтобы позиционировать логотип относительно него */
+        #client_card_content_inner {
+            position: relative;
+            padding-bottom: 20px; /* Отступ снизу для места под печать */
+        }
+
+        /* ВОЗВРАТ ПОЗИЦИИ: Привязка к низу текстового блока */
+        #client_logo_stamp {
+			position: absolute;
+			bottom: 5px;
+			left: calc(52% - 50px);
+			
+			/* Убираем жесткие width и height, задаем плавающие с ограничением */
+			max-width: 100px;
+			max-height: 100px;
+			width: auto;
+			height: auto;
+			
+			opacity: 0.85;
+			transform: rotate(-15deg);
+			pointer-events: none;
+			z-index: 5;
+			display: none;
+		}
+
+    
+        .btn-reset {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            color: #ef5350;
+            border: 1px solid #ef5350;
+            border-radius: 6px;
+            width: 42px; 
+            height: 42px;
+            cursor: pointer;
+            font-size: 18px;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+
+        .btn-reset:hover {
+            color: #121212;
+            background: #ef5350;
+        }
+
+		/* Уплотняем строки только в блоках Себестоимость и Доп. информация */
+        #card_cost .card-content,
+        #card_my_calc .card-content {
+            gap: 4px; /* Уменьшаем зазор между элементами (по умолчанию было 16px) */
+        }
+
+        #card_cost .result-group,
+        #card_my_calc .result-group {
+            padding: 4px 0; /* Уменьшаем отступы внутри самих строк (по умолчанию было 8px 0) */
+        }
+
+		/* Возвращаем отступ от пунктирной линии для строки ИТОГО */
+        #card_cost .result-group.total,
+        #card_my_calc .result-group.total {
+            padding-top: 14px; /* Сдвигаем текст вниз от пунктирной линии */
+            margin-top: 8px;   /* Оставляем зазор над линией */
+            padding-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+    <img src="icon-192.png" alt="Логотип" style="width: 40px; height: 40px; object-fit: contain;">
+    P3D Калькулятор
+	</h1>
+
+    <div class="grid">
+        <div class="card" id="card_equipment">
+            <h2>Параметры принтера <span class="toggle-arrow">▼</span></h2>
+            <div class="card-content">
+                <div class="form-group">
+                    <label>Стоимость принтера (₽)</label>
+                    <input type="number" id="cost_printer" value="85000">
+                </div>
+                <div class="form-group">
+                    <label>Ресурс принтера (ч)</label>
+                    <input type="number" id="resource_printer" value="8760">
+                </div>
+                <div class="form-group">
+                    <label>Мощность принтера (кВт)</label>
+                    <input type="number" id="power_printer" value="1.2" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Тариф на эл-во (₽/кВт*ч)</label>
+                    <input type="number" id="tariff_elec" value="7" step="0.1">
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="card_rates">
+            <h2>Расценки и Наценки <span class="toggle-arrow">▼</span></h2>
+            <div class="card-content">
+                <div class="form-group">
+                    <div style="display: flex; flex-direction: column;">
+                        <label>Стоимость катушки (₽)</label>
+                        <span class="note-text" id="note_cost_per_gram">цена 1 гр = 1.5 ₽</span>
+                    </div>
+                    <input type="number" id="cost_spool" value="1000">
+                </div>
+                
+                <div class="form-group">
+                    <label>Вес катушки (гр)</label>
+                    <input type="number" id="weight_spool" value="1000">
+                </div>
+                
+                <div class="inner-block">
+                    <label style="font-size: 13px; color: var(--text-muted); display: block; text-align: center;">Цена 1 гр филамента для клиента (₽):</label>
+                    <div class="brackets-grid">
+                        <div>0-10 гр<input type="number" id="price_bracket_1" value="25" step="0.1"></div>
+                        <div>11-30 гр<input type="number" id="price_bracket_2" value="15" step="0.1"></div>
+                        <div>31-200 гр<input type="number" id="price_bracket_3" value="9" step="0.1"></div>
+                        <div>201+ гр<input type="number" id="price_bracket_4" value="6.5" step="0.1"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 8px;">
+                    <label>Стоимость запуска (₽)</label>
+                    <input type="number" id="cost_start" value="200">
+                </div>
+                <div class="form-group">
+                    <label>Контроль печати (₽/час)</label>
+                    <input type="number" id="cost_control" value="50">
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="card_order">
+            <h2>Параметры Заказа <span class="toggle-arrow">▼</span></h2>
+            <div class="card-content">
+                <div class="form-group">
+                    <label>Масса 1 изделия (гр)</label>
+                    <input type="number" id="mass_item" value="150">
+                </div>
+                <div class="form-group">
+                    <label>Кол-во экземпляров (шт)</label>
+                    <input type="number" id="count_items" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Время печати 1 экз. (ч)</label>
+                    <input type="number" id="time_item" value="1" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>Коэффициент брака (%)</label>
+                    <input type="number" id="defect_rate" value="5">
+                </div>
+                <div class="form-group">
+                    <label>Моделирование (₽)</label>
+                    <input type="number" id="cost_modeling" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Постобработка (1 экз., ₽)</label>
+                    <input type="number" id="cost_postproc" value="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="card_cost">
+            <h2>Себестоимость <span class="toggle-arrow">▼</span></h2>
+            <div class="card-content">
+                <div class="result-group">
+                    <span>Амортизация:</span>
+                    <span class="result-value" id="out_depreciation">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Электричество:</span>
+                    <span class="result-value" id="out_electricity">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Филамент (БЕЗ брака):</span>
+                    <span class="result-value" id="out_filament_clean">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Филамент (С браком):</span>
+                    <span class="result-value" id="out_filament_defect">0 ₽</span>
+                </div>
+                <div class="result-group total">
+                    <span>ИТОГО Себестоимость:</span>
+                    <span class="result-value" id="out_cost_total">0 ₽</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="card_my_calc">
+            <h2>Доп. информация (для меня) <span class="toggle-arrow">▼</span></h2>
+            <div class="card-content">
+                <div class="result-group">
+                    <span>Стоимость катушки:</span>
+                    <span class="result-value" id="out_my_spool_cost">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Вес катушки:</span>
+                    <span class="result-value" id="out_my_spool_weight">0 гр</span>
+                </div>
+                <div class="result-group">
+                    <span>Стоимость запуска:</span>
+                    <span class="result-value" id="out_my_start_cost">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Контроль печати (весь заказ):</span>
+                    <span class="result-value" id="out_my_control_total">0 ₽</span>
+                </div>
+                <div class="result-group">
+                    <span>Филамент для клиента:</span>
+                    <span class="result-value" id="out_my_filament_client">0 ₽</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="client_card" style="border-color: var(--accent);">
+            <h2 style="color: var(--accent); border-color: var(--accent);">Расчетный лист <span class="toggle-arrow" style="color: var(--accent);">▼</span></h2>
+            <div class="card-content" id="client_card_content">
+                
+                <div id="client_card_content_inner">
+                    <img id="client_logo_stamp" src="" alt="Печать">
+
+                    <div class="result-group">
+                        <span>Итоговый вес заказа:</span>
+                        <span class="result-value" id="out_client_weight">0 гр</span>
+                    </div>
+                    <div class="result-group">
+                        <span>Итоговое время печати:</span>
+                        <span class="result-value" id="out_client_time">0 ч</span>
+                    </div>
+                    <div class="result-group">
+                        <span>Цена за 1 гр филамента:</span>
+                        <span class="result-value" id="out_client_gram_rate">0 ₽</span>
+                    </div>
+                    <div class="result-group">
+                        <span>Стоимость печати (все экз.):</span>
+                        <span class="result-value" id="out_client_print">0 ₽</span>
+                    </div>
+                    <div class="result-group">
+                        <span>Моделирование:</span>
+                        <span class="result-value" id="out_client_modelling">0 ₽</span>
+                    </div>
+                    <div class="result-group total">
+                        <span>К ОПЛАТЕ:</span>
+                        <span class="result-value" id="out_client_final">0 ₽</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons" data-html2canvas-ignore>
+                    <button class="btn-save" id="btn_save_image">Скачать</button>
+                    <input type="file" id="logo_upload_input" accept="image/png, image/jpeg" style="display: none;">
+                    <label for="logo_upload_input" class="logo-upload-btn" title="Загрузить логотип">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<circle cx="12" cy="12" r="3"></circle>
+							<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+						</svg>
+					</label>
+                    <button id="btn_reset_data" class="btn-reset" title="Сбросить все настройки"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg></button>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const STORAGE_PREFIX = 'calc3d_v2_';
+	// Перехват клика по шестеренке для вывода вопроса
+    document.querySelector('.logo-upload-btn').addEventListener('click', function(e) {
+        e.preventDefault(); // Отменяем автоматический запуск выбора файла
+        if (confirm('Хотите добавить штамп печати на расчётный лист?')) {
+            document.getElementById('logo_upload_input').click(); // Запускаем выбор файла вручную при согласии
+        }
+    });
+
+    function getVal(id) {
+        return parseFloat(document.getElementById(id).value) || 0;
+    }
+
+    function setVal(id, val, suffix = '') {
+        const formatted = Number.isInteger(val) ? val : parseFloat(val.toFixed(1));
+        document.getElementById(id).innerText = formatted + ' ' + suffix;
+    }
+
+    // Восстановление состояния блоков
+    document.querySelectorAll('.card').forEach(card => {
+        if (card.id) {
+            const savedState = localStorage.getItem(STORAGE_PREFIX + card.id + '_state');
+            if (savedState === 'collapsed') {
+                card.classList.add('collapsed');
+            }
+        }
+    });
+
+    // Обработка клика по заголовку
+    document.querySelectorAll('.card h2').forEach(header => {
+        header.addEventListener('click', () => {
+            const card = header.closest('.card');
+            card.classList.toggle('collapsed');
+            if (card.id) {
+                const isCollapsed = card.classList.contains('collapsed');
+                localStorage.setItem(STORAGE_PREFIX + card.id + '_state', isCollapsed ? 'collapsed' : 'expanded');
+            }
+        });
+    });
+
+    // Логика загрузки логотипа
+    const logoInput = document.getElementById('logo_upload_input');
+    const logoImg = document.getElementById('client_logo_stamp');
+    
+    const savedLogo = localStorage.getItem(STORAGE_PREFIX + 'logo_image');
+    if (savedLogo) {
+        logoImg.src = savedLogo;
+        logoImg.style.display = 'block';
+    }
+
+    logoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64data = event.target.result;
+                logoImg.src = base64data;
+                logoImg.style.display = 'block';
+                localStorage.setItem(STORAGE_PREFIX + 'logo_image', base64data);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Основная функция расчетов
+    function calculate() {
+        const cost_printer = getVal('cost_printer');
+        const resource_printer = getVal('resource_printer') || 1; 
+        const power_printer = getVal('power_printer');
+        const tariff_elec = getVal('tariff_elec');
+        const cost_spool = getVal('cost_spool');
+        const weight_spool = getVal('weight_spool') || 1; 
+        
+        const mass_item = getVal('mass_item');
+        const count_items = getVal('count_items');
+        const time_item = getVal('time_item');
+        const defect_rate = getVal('defect_rate');
+
+        const depreciation_per_hour = cost_printer / resource_printer;
+        const electricity_per_hour = power_printer * tariff_elec;
+        const filament_cost_per_gram = cost_spool / weight_spool;
+
+        const formatted_filament_cost = Number.isInteger(filament_cost_per_gram) ? filament_cost_per_gram : parseFloat(filament_cost_per_gram.toFixed(2));
+        document.getElementById('note_cost_per_gram').innerText = `цена 1 гр = ${formatted_filament_cost} ₽`;
+
+        const total_time = time_item * count_items;
+        const raw_weight = mass_item * count_items;
+        const total_weight = raw_weight * (1 + defect_rate / 100);
+
+        const total_depreciation = depreciation_per_hour * total_time;
+        const total_electricity = electricity_per_hour * total_time;
+        const filament_cost_clean = raw_weight * filament_cost_per_gram;
+        const filament_cost_defect = total_weight * filament_cost_per_gram;
+
+        const total_cost = total_depreciation + total_electricity + filament_cost_defect;
+
+        let client_gram_rate = 0;
+        if (total_weight <= 10) {
+            client_gram_rate = getVal('price_bracket_1');
+        } else if (total_weight <= 30) {
+            client_gram_rate = getVal('price_bracket_2');
+        } else if (total_weight <= 200) {
+            client_gram_rate = getVal('price_bracket_3');
+        } else {
+            client_gram_rate = getVal('price_bracket_4');
+        }
+
+        const client_filament_cost = total_weight * client_gram_rate;
+        const start_cost = getVal('cost_start');
+        const control_cost = getVal('cost_control') * total_time;
+        const postproc_cost = getVal('cost_postproc') * count_items;
+        const modeling_cost = getVal('cost_modeling');
+
+        let print_price_final = start_cost + control_cost + postproc_cost + client_filament_cost + total_depreciation + total_electricity;
+        let grand_total = print_price_final + modeling_cost;
+
+        setVal('out_depreciation', total_depreciation, '₽');
+        setVal('out_electricity', total_electricity, '₽');
+        setVal('out_filament_clean', filament_cost_clean, '₽');
+        setVal('out_filament_defect', filament_cost_defect, '₽');
+        setVal('out_cost_total', total_cost, '₽');
+
+        setVal('out_my_spool_cost', cost_spool, '₽');
+        setVal('out_my_spool_weight', weight_spool, 'гр');
+        setVal('out_my_start_cost', start_cost, '₽');
+        setVal('out_my_control_total', control_cost, '₽');
+        setVal('out_my_filament_client', client_filament_cost, '₽');
+
+        setVal('out_client_weight', total_weight, 'гр');
+        setVal('out_client_time', total_time, 'ч');
+        setVal('out_client_gram_rate', client_gram_rate, '₽');
+        setVal('out_client_print', print_price_final, '₽');
+        setVal('out_client_modelling', modeling_cost, '₽');
+        setVal('out_client_final', grand_total, '₽');
+    }
+
+    // Сохранение в картинку с запросом имени файла
+    document.getElementById('btn_save_image').addEventListener('click', function(e) {
+        e.stopPropagation(); 
+        
+        // Показываем окно ввода имени файла с дефолтным значением
+        let fileName = prompt('Введите название для сохраняемого расчетного листа:', 'Расчет 3D');
+        
+        // Если нажата кнопка «Отмена» или поле пустое — ничего не делаем
+        if (!fileName || fileName.trim() === '') return;
+        
+        // Если пользователь забыл дописать .png, добавляем автоматически
+        if (!fileName.toLowerCase().endsWith('.png')) {
+            fileName += '.png';
+        }
+
+        const card = document.getElementById('client_card');
+        const isCollapsed = card.classList.contains('collapsed');
+        
+        if (isCollapsed) {
+            card.classList.remove('collapsed');
+        }
+        
+        setTimeout(() => {
+            html2canvas(card, {
+                backgroundColor: '#1e1e1e', 
+                scale: 2, 
+                logging: false,
+                useCORS: true, 
+                allowTaint: true 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = fileName; // Применяем введенное пользователем имя
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                if (isCollapsed) {
+                    card.classList.add('collapsed');
+                }
+            });
+        }, 50);
+    });
+
+    
+    // Логика кнопки полного сброса (настройки, кэш, куки, Service Worker)
+    document.getElementById('btn_reset_data').addEventListener('click', async function() {
+        if (confirm('Вы точно хотите сбросить настройки и полностью очистить кэш приложения?')) {
+            
+            // 1. Очищаем локальное хранилище (настройки калькулятора)
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith(STORAGE_PREFIX)) {
+                    localStorage.removeItem(key);
+                }
+            });
+
+            // 2. Очищаем все куки
+            document.cookie.split(";").forEach(function(c) { 
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+            });
+
+            // 3. Очищаем кэш скачанных файлов (PWA Cache)
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(cache => caches.delete(cache)));
+                } catch (e) {
+                    console.log('Ошибка при очистке кэша:', e);
+                }
+            }
+
+            // 4. Отключаем Service Worker
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                } catch (e) {
+                    console.log('Ошибка при удалении Service Worker:', e);
+                }
+            }
+
+            // 5. Принудительно перезагружаем страницу (с игнорированием остаточного кэша браузера)
+            window.location.reload(true);
+        }
+    });
+
+    // Инициализация полей
+
+    document.querySelectorAll('input:not(#logo_upload_input)').forEach(input => {
+        const savedValue = localStorage.getItem(STORAGE_PREFIX + input.id);
+        if (savedValue !== null) {
+            input.value = savedValue;
+        }
+
+        input.addEventListener('input', () => {
+            localStorage.setItem(STORAGE_PREFIX + input.id, input.value);
+            calculate();
+        });
+    });
+
+    calculate();
+</script>
+	<script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker зарегистрирован', reg))
+                    .catch(err => console.log('Ошибка Service Worker', err));
+            });
+        }
+    </script>
+</body>
+</html>
